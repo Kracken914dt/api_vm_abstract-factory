@@ -21,11 +21,16 @@ router = APIRouter()
 
 class InfrastructureCreateRequest(BaseModel):
     """Request model para crear infraestructura completa"""
-    provider: str = Field(..., description="Proveedor de cloud (aws, azure, gcp, etc.)")
-    vm: Optional[Dict[str, Any]] = Field(None, description="Configuración de VM")
-    database: Optional[Dict[str, Any]] = Field(None, description="Configuración de base de datos")
-    load_balancer: Optional[Dict[str, Any]] = Field(None, description="Configuración de load balancer")
-    storage: Optional[Dict[str, Any]] = Field(None, description="Configuración de almacenamiento")
+    provider: str = Field(..., description="Proveedor de cloud (aws, azure, gcp, oracle, onprem)")
+    name: str = Field(..., description="Nombre de la infraestructura")
+    region: Optional[str] = Field("us-east-1", description="Región donde crear la infraestructura")
+    vm_config: Optional[Dict[str, Any]] = Field(None, description="Configuración de VM")
+    database_config: Optional[Dict[str, Any]] = Field(None, description="Configuración de base de datos") 
+    load_balancer_config: Optional[Dict[str, Any]] = Field(None, description="Configuración de load balancer")
+    storage_config: Optional[Dict[str, Any]] = Field(None, description="Configuración de almacenamiento")
+    include_database: Optional[bool] = Field(True, description="Incluir base de datos")
+    include_load_balancer: Optional[bool] = Field(True, description="Incluir load balancer")
+    include_storage: Optional[bool] = Field(True, description="Incluir almacenamiento")
     requested_by: Optional[str] = Field("system", description="Usuario que solicita la creación")
 
     class Config:
@@ -81,10 +86,7 @@ class InfrastructureResponse(BaseModel):
 
 
 @router.post("/infrastructure/create", response_model=InfrastructureResponse)
-def create_infrastructure(
-    request: InfrastructureCreateRequest,
-    service: VMService = Depends(get_vm_service)
-):
+def create_infrastructure(request: InfrastructureCreateRequest):
     """
     Crea una infraestructura completa usando el patrón Abstract Factory.
     
@@ -92,60 +94,200 @@ def create_infrastructure(
     familias de productos relacionados de diferentes proveedores de cloud.
     """
     try:
-        # Validar que se especifique al menos un recurso
-        resources_to_create = {
-            "vm": request.vm,
-            "database": request.database,
-            "load_balancer": request.load_balancer,
-            "storage": request.storage
-        }
+        print(f"📦 Iniciando creación de infraestructura para proveedor: {request.provider}")
         
-        active_resources = {k: v for k, v in resources_to_create.items() if v is not None}
-        
-        if not active_resources:
+        # Obtener la factory para el proveedor
+        try:
+            provider_enum = CloudProvider(request.provider.lower())
+            factory = create_cloud_factory(provider_enum)
+        except ValueError:
             raise HTTPException(
                 status_code=400, 
-                detail="At least one resource (vm, database, load_balancer, storage) must be specified"
+                detail=f"Proveedor '{request.provider}' no soportado. Proveedores disponibles: {[p.value for p in CloudProvider]}"
             )
+        print(f"🏭 Factory obtenida: {type(factory).__name__}")
         
-        # Preparar configuración para el Abstract Factory
-        infrastructure_config = {
-            **active_resources,
-            "requested_by": request.requested_by
+        # Lista para almacenar recursos creados
+        resources_created = []
+        infrastructure_details = {}
+        
+        # Crear VM siempre (recurso base)
+        vm_name = f"{request.name}-vm"
+        
+        # Preparar configuración de VM
+        if request.vm_config:
+            vm_config = request.vm_config.copy()
+        else:
+            vm_config = {}
+        
+        # Asegurar configuración mínima por proveedor
+        vm_config["region"] = vm_config.get("region", request.region)
+        
+        if request.provider == "aws":
+            # Campos requeridos por AWS factory - siempre necesarios
+            if "instance_type" not in vm_config:
+                vm_config["instance_type"] = "t2.micro"
+            if "ami" not in vm_config:
+                vm_config["ami"] = "ami-0abcdef1234567890"  
+            if "vpc_id" not in vm_config:
+                vm_config["vpc_id"] = "vpc-12345678"
+            # Los campos opcionales como key_pair se preservan si los envió el usuario
+        elif request.provider == "azure":
+            vm_config.setdefault("vm_size", "Standard_B1s")
+            vm_config.setdefault("resource_group", "rg-default")
+            vm_config.setdefault("image", "Ubuntu 20.04 LTS")
+        elif request.provider == "gcp":
+            vm_config.setdefault("machine_type", "e2-micro")
+            vm_config.setdefault("zone", "us-central1-a")
+            vm_config.setdefault("project", "demo-project")
+        elif request.provider == "oracle":
+            vm_config.setdefault("compute_shape", "VM.Standard2.1")
+            vm_config.setdefault("compartment_id", "ocid.compartment.demo")
+            vm_config.setdefault("availability_domain", "AD-1")
+        elif request.provider == "onprem":
+            vm_config.setdefault("cpu", 2)
+            vm_config.setdefault("ram_gb", 4)
+            vm_config.setdefault("disk_gb", 50)
+        
+        vm = factory.create_virtual_machine(vm_name, vm_config)
+        vm_info = {
+            "name": vm.name,
+            "resource_id": vm.resource_id,
+            "region": vm.region,
+            "status": vm.status.value,
+            "type": vm.get_resource_type(),
+            "specs": vm.get_specs()
         }
+        resources_created.append("virtual_machine")
+        infrastructure_details["virtual_machine"] = vm_info
+        print(f"🖥️ VM creada: {vm_info}")
         
-        # Crear infraestructura usando el Abstract Factory
-        result = service.create_infrastructure(request.provider, infrastructure_config)
+        # Crear Database si se requiere
+        if request.include_database:
+            db_name = f"{request.name}-db"
+            db_config = request.database_config or {
+                "region": request.region,
+                "engine": "mysql",
+                "instance_class": "db.t3.micro",
+                "allocated_storage": 20
+            }
+            
+            db = factory.create_database(db_name, db_config)
+            db_info = {
+                "name": db.name,
+                "resource_id": db.resource_id,
+                "region": db.region,
+                "status": db.status.value,
+                "type": db.get_resource_type(),
+                "specs": db.get_specs()
+            }
+            resources_created.append("database")
+            infrastructure_details["database"] = db_info
+            print(f"🗄️ Database creada: {db_info}")
         
-        return InfrastructureResponse(
+        # Crear Load Balancer si se requiere
+        if request.include_load_balancer:
+            lb_name = f"{request.name}-lb"
+            lb_config = request.load_balancer_config or {
+                "region": request.region,
+                "load_balancer_type": "application",
+                "scheme": "internet-facing"
+            }
+            
+            # Asegurar campos requeridos por proveedor para Load Balancer
+            if request.provider == "aws":
+                if "vpc_id" not in lb_config:
+                    lb_config["vpc_id"] = "vpc-12345678"  # Usar el mismo VPC que la VM
+            
+            lb = factory.create_load_balancer(lb_name, lb_config)
+            lb_info = {
+                "name": lb.name,
+                "resource_id": lb.resource_id,
+                "region": lb.region,
+                "status": lb.status.value,
+                "type": lb.get_resource_type(),
+                "specs": lb.get_specs()
+            }
+            resources_created.append("load_balancer")
+            infrastructure_details["load_balancer"] = lb_info
+            print(f"⚖️ Load Balancer creado: {lb_info}")
+        
+        # Crear Storage si se requiere
+        if request.include_storage:
+            storage_name = f"{request.name}-storage"
+            storage_config = request.storage_config or {
+                "region": request.region,
+                "size_gb": 100,
+                "storage_type": "gp3" if request.provider == "aws" else "standard"
+            }
+            
+            storage = factory.create_storage(storage_name, storage_config) 
+            storage_info = {
+                "name": storage.name,
+                "resource_id": storage.resource_id,
+                "region": storage.region,
+                "status": storage.status.value,
+                "type": storage.get_resource_type(),
+                "specs": storage.get_specs()
+            }
+            resources_created.append("storage")
+            infrastructure_details["storage"] = storage_info
+            print(f"💾 Storage creado: {storage_info}")
+        
+        # Registrar en logs
+        audit_log(
+            actor=request.requested_by,
+            action="create_infrastructure",
+            vm_id=f"{request.name}-infrastructure",
+            provider=request.provider,
             success=True,
-            message=f"Infrastructure created successfully using {result['provider']}",
-            provider=result['provider'],
-            resources_created=result['resources_created'],
-            infrastructure=result['infrastructure']
+            details={
+                "infrastructure_name": request.name,
+                "resources_created": len(resources_created),
+                "pattern": "Abstract Factory"
+            }
         )
         
-    except ValueError as e:
+        result = InfrastructureResponse(
+            success=True,
+            message=f"Infraestructura '{request.name}' creada exitosamente usando {request.provider.upper()}",
+            provider=request.provider,
+            resources_created=len(resources_created),
+            infrastructure=infrastructure_details
+        )
+        
+        print(f"✅ Infraestructura creada exitosamente: {len(resources_created)} recursos")
+        return result
+        
+    except KeyError as e:
+        error_msg = f"Proveedor '{request.provider}' no soportado. Proveedores disponibles: aws, azure, gcp, oracle, onprem"
+        print(f"❌ Error de proveedor: {error_msg}")
+        
         audit_log(
             actor=request.requested_by,
             action="create_infrastructure",
-            vm_id="multiple",
+            vm_id="error",
             provider=request.provider,
             success=False,
-            details={"error": str(e)}
+            details={"error": "unsupported_provider"}
         )
-        raise HTTPException(status_code=400, detail=str(e))
-    
+        
+        raise HTTPException(status_code=400, detail=error_msg)
+        
     except Exception as e:
+        error_msg = f"Error interno al crear infraestructura: {str(e)}"
+        print(f"❌ Error interno: {error_msg}")
+        
         audit_log(
             actor=request.requested_by,
             action="create_infrastructure",
-            vm_id="multiple",
+            vm_id="error",
             provider=request.provider,
             success=False,
-            details={"error": "internal_error"}
+            details={"error": "internal_error", "details": str(e)}
         )
-        raise HTTPException(status_code=500, detail="Internal server error")
+        
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @router.get("/providers", response_model=Dict[str, Any])
