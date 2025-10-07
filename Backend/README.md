@@ -85,19 +85,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 http://localhost:8000/docs
 
-## 🧪 Probar el Abstract Factory
-
-### 🚀 Ejecutar prueba completa de todos los proveedores:
-
-```powershell
-python test_complete_abstract_factory.py
-```
-
-### 📝 Prueba específica con Postman o curl:
-
-```powershell
-# Usar los ejemplos de curl de la sección anterior
-python test_postman.py  # Script de prueba con requests
 ```
 
 ### 🌐 Documentación interactiva:
