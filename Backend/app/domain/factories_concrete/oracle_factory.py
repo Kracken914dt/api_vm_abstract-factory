@@ -1,7 +1,4 @@
-"""
-Fábrica concreta de Oracle Cloud que implementa el Abstract Factory.
-Crea familias de productos específicos de Oracle Cloud Infrastructure (OCI) que trabajan juntos.
-"""
+
 from typing import Dict, Any
 from ..abstractions.factory import CloudAbstractFactory
 from ..abstractions.products import VirtualMachine, Database, LoadBalancer, Storage
@@ -24,7 +21,7 @@ class OracleCloudFactory(CloudAbstractFactory):
             "ap-sydney-1", "ap-melbourne-1", "ap-mumbai-1"
         ]
     
-    def create_virtual_machine(self, config: Dict[str, Any]) -> VirtualMachine:
+    def create_virtual_machine(self, name: str, vm_config: Dict[str, Any]) -> VirtualMachine:
         """
         Crea una instancia de Oracle Compute con la configuración especificada.
         
@@ -35,6 +32,8 @@ class OracleCloudFactory(CloudAbstractFactory):
             OracleComputeInstance: Nueva instancia de VM de Oracle Cloud
         """
         # Validar configuración específica de Oracle
+        config = vm_config.copy()
+        config["name"] = name
         self._validate_vm_config(config)
         
         # Crear la instancia de Oracle Compute
@@ -43,7 +42,7 @@ class OracleCloudFactory(CloudAbstractFactory):
         
         return vm
     
-    def create_database(self, config: Dict[str, Any]) -> Database:
+    def create_database(self, name: str, db_config: Dict[str, Any]) -> Database:
         """
         Crea una Autonomous Database de Oracle con la configuración especificada.
         
@@ -54,6 +53,8 @@ class OracleCloudFactory(CloudAbstractFactory):
             OracleAutonomousDatabase: Nueva instancia de base de datos de Oracle Cloud
         """
         # Validar configuración específica de Oracle
+        config = db_config.copy()
+        config["name"] = name
         self._validate_database_config(config)
         
         # Crear la Autonomous Database
@@ -62,7 +63,7 @@ class OracleCloudFactory(CloudAbstractFactory):
         
         return database
     
-    def create_load_balancer(self, config: Dict[str, Any]) -> LoadBalancer:
+    def create_load_balancer(self, name: str, lb_config: Dict[str, Any]) -> LoadBalancer:
         """
         Crea un Load Balancer de Oracle Cloud con la configuración especificada.
         
@@ -73,6 +74,8 @@ class OracleCloudFactory(CloudAbstractFactory):
             OracleLoadBalancer: Nueva instancia de load balancer de Oracle Cloud
         """
         # Validar configuración específica de Oracle
+        config = lb_config.copy()
+        config["name"] = name
         self._validate_load_balancer_config(config)
         
         # Crear el Load Balancer
@@ -81,7 +84,7 @@ class OracleCloudFactory(CloudAbstractFactory):
         
         return load_balancer
     
-    def create_storage(self, config: Dict[str, Any]) -> Storage:
+    def create_storage(self, name: str, storage_config: Dict[str, Any]) -> Storage:
         """
         Crea un bucket de Object Storage de Oracle con la configuración especificada.
         
@@ -92,6 +95,8 @@ class OracleCloudFactory(CloudAbstractFactory):
             OracleObjectStorage: Nueva instancia de storage de Oracle Cloud
         """
         # Validar configuración específica de Oracle
+        config = storage_config.copy()
+        config["name"] = name
         self._validate_storage_config(config)
         
         # Crear el Object Storage bucket
@@ -179,3 +184,20 @@ class OracleCloudFactory(CloudAbstractFactory):
         
         if storage_tier not in valid_storage_tiers:
             raise ValueError(f"Storage tier inválido para Oracle: {storage_tier}")
+
+    # ---------------------- Métodos de capacidades (expuestos al endpoint info) ----------------------
+    def get_supported_compute_shapes(self) -> list[str]:
+        return [
+            "VM.Standard2.1", "VM.Standard2.2", "VM.Standard2.4", "VM.Standard2.8",
+            "VM.Standard3.Flex", "VM.Optimized3.Flex", "BM.Standard2.52",
+            "BM.Standard3.64", "VM.Standard.E3.Flex", "VM.Standard.E4.Flex"
+        ]
+
+    def get_supported_database_workloads(self) -> list[str]:
+        return ["OLTP", "DW", "AJD", "APEX"]
+
+    def get_supported_load_balancer_shapes(self) -> list[str]:
+        return ["10Mbps", "100Mbps", "400Mbps", "8000Mbps"]
+
+    def get_supported_storage_tiers(self) -> list[str]:
+        return ["Standard", "InfrequentAccess", "Archive"]

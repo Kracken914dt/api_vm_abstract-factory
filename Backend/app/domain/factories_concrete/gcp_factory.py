@@ -1,7 +1,4 @@
-"""
-Fábrica concreta de GCP que implementa el Abstract Factory.
-Crea familias de productos específicos de Google Cloud Platform que trabajan juntos.
-"""
+
 from typing import Dict, Any
 from ..abstractions.factory import CloudAbstractFactory
 from ..abstractions.products import VirtualMachine, Database, LoadBalancer, Storage
@@ -21,7 +18,7 @@ class GCPCloudFactory(CloudAbstractFactory):
             "europe-west1", "europe-west2", "asia-east1", "asia-southeast1"
         ]
     
-    def create_virtual_machine(self, config: Dict[str, Any]) -> VirtualMachine:
+    def create_virtual_machine(self, name: str, config: Dict[str, Any]) -> VirtualMachine:
         """
         Crea una instancia de Compute Engine con la configuración especificada.
         
@@ -33,6 +30,8 @@ class GCPCloudFactory(CloudAbstractFactory):
         """
         # Validar configuración específica de GCP
         self._validate_vm_config(config)
+        config = config.copy()
+        config["name"] = name
         
         # Crear la instancia de Compute Engine
         vm = ComputeEngineInstance(config)
@@ -40,7 +39,7 @@ class GCPCloudFactory(CloudAbstractFactory):
         
         return vm
     
-    def create_database(self, config: Dict[str, Any]) -> Database:
+    def create_database(self, name: str, config: Dict[str, Any]) -> Database:
         """
         Crea una instancia de Cloud SQL con la configuración especificada.
         
@@ -52,6 +51,8 @@ class GCPCloudFactory(CloudAbstractFactory):
         """
         # Validar configuración específica de GCP
         self._validate_database_config(config)
+        config = config.copy()
+        config["name"] = name
         
         # Crear la instancia de Cloud SQL
         database = CloudSQLDatabase(config)
@@ -59,7 +60,7 @@ class GCPCloudFactory(CloudAbstractFactory):
         
         return database
     
-    def create_load_balancer(self, config: Dict[str, Any]) -> LoadBalancer:
+    def create_load_balancer(self, name: str, config: Dict[str, Any]) -> LoadBalancer:
         """
         Crea un Load Balancer de GCP con la configuración especificada.
         
@@ -71,6 +72,8 @@ class GCPCloudFactory(CloudAbstractFactory):
         """
         # Validar configuración específica de GCP
         self._validate_load_balancer_config(config)
+        config = config.copy()
+        config["name"] = name
         
         # Crear el Load Balancer
         load_balancer = CloudLoadBalancer(config)
@@ -78,7 +81,7 @@ class GCPCloudFactory(CloudAbstractFactory):
         
         return load_balancer
     
-    def create_storage(self, config: Dict[str, Any]) -> Storage:
+    def create_storage(self, name: str, config: Dict[str, Any]) -> Storage:
         """
         Crea un bucket de Cloud Storage con la configuración especificada.
         
@@ -90,6 +93,8 @@ class GCPCloudFactory(CloudAbstractFactory):
         """
         # Validar configuración específica de GCP
         self._validate_storage_config(config)
+        config = config.copy()
+        config["name"] = name
         
         # Crear el Cloud Storage bucket
         storage = CloudStorage(config)
@@ -172,3 +177,23 @@ class GCPCloudFactory(CloudAbstractFactory):
         
         if location not in valid_locations:
             raise ValueError(f"Ubicación inválida para GCP Storage: {location}")
+
+    # ---------------------- Métodos de capacidades (expuestos al endpoint info) ----------------------
+    def get_supported_machine_types(self) -> list[str]:
+        return [
+            "e2-micro", "e2-small", "e2-medium", "e2-standard-2", "e2-standard-4",
+            "n1-standard-1", "n1-standard-2", "n1-standard-4", "n1-standard-8",
+            "n2-standard-2", "n2-standard-4", "n2-standard-8"
+        ]
+
+    def get_supported_database_engines(self) -> list[str]:
+        return ["mysql", "postgres", "sqlserver"]
+
+    def get_supported_storage_classes(self) -> list[str]:
+        return ["STANDARD", "NEARLINE", "COLDLINE", "ARCHIVE"]
+
+    def get_supported_load_balancer_types(self) -> list[str]:
+        return ["HTTP(S)", "TCP", "UDP", "SSL"]
+
+    def get_supported_locations(self) -> list[str]:
+        return ["US", "EU", "ASIA"] + self.supported_regions

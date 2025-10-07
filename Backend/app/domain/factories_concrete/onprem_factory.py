@@ -1,7 +1,3 @@
-"""
-Fábrica concreta de OnPremise que implementa el Abstract Factory.
-Crea familias de productos específicos de infraestructura on-premise que trabajan juntos.
-"""
 from typing import Dict, Any
 from ..abstractions.factory import CloudAbstractFactory
 from ..abstractions.products import VirtualMachine, Database, LoadBalancer, Storage
@@ -9,11 +5,7 @@ from ..products.onprem_products import OnPremiseVirtualMachine, OnPremiseDatabas
 
 
 class OnPremiseCloudFactory(CloudAbstractFactory):
-    """
-    Fábrica concreta para crear productos de infraestructura on-premise.
-    Implementa el Abstract Factory pattern para entornos on-premise.
-    """
-    
+
     def __init__(self):
         self.provider_name = "onprem"
         self.supported_hypervisors = ["vmware", "hyperv", "kvm", "xen"]
@@ -21,80 +13,36 @@ class OnPremiseCloudFactory(CloudAbstractFactory):
         self.supported_load_balancer_types = ["nginx", "haproxy", "f5", "citrix"]
         self.supported_storage_types = ["nfs", "smb", "iscsi", "fc"]
     
-    def create_virtual_machine(self, config: Dict[str, Any]) -> VirtualMachine:
-        """
-        Crea una VM on-premise con la configuración especificada.
-        
-        Args:
-            config: Configuración de la VM incluyendo cpu, ram_gb, disk_gb, hypervisor, etc.
-            
-        Returns:
-            OnPremiseVirtualMachine: Nueva instancia de VM on-premise
-        """
-        # Validar configuración específica de on-premise
+    def create_virtual_machine(self, name: str, vm_config: Dict[str, Any]) -> VirtualMachine:
+        config = vm_config.copy()
+        config["name"] = name
         self._validate_vm_config(config)
-        
-        # Crear la VM on-premise
         vm = OnPremiseVirtualMachine(config)
         print(f"🏭 OnPrem Factory: Creando VM {vm.name} en {vm.hypervisor}")
-        
         return vm
-    
-    def create_database(self, config: Dict[str, Any]) -> Database:
-        """
-        Crea una base de datos on-premise con la configuración especificada.
-        
-        Args:
-            config: Configuración de la base de datos incluyendo engine, version, etc.
-            
-        Returns:
-            OnPremiseDatabase: Nueva instancia de base de datos on-premise
-        """
-        # Validar configuración específica de on-premise
+
+    def create_database(self, name: str, db_config: Dict[str, Any]) -> Database:
+        config = db_config.copy()
+        config["name"] = name
         self._validate_database_config(config)
-        
-        # Crear la base de datos on-premise
         database = OnPremiseDatabase(config)
         print(f"🏭 OnPrem Factory: Creando base de datos {database.name} ({database.engine})")
-        
         return database
-    
-    def create_load_balancer(self, config: Dict[str, Any]) -> LoadBalancer:
-        """
-        Crea un Load Balancer on-premise con la configuración especificada.
-        
-        Args:
-            config: Configuración del load balancer incluyendo type, listen_port, etc.
-            
-        Returns:
-            OnPremiseLoadBalancer: Nueva instancia de load balancer on-premise
-        """
-        # Validar configuración específica de on-premise
+
+    def create_load_balancer(self, name: str, lb_config: Dict[str, Any]) -> LoadBalancer:
+        config = lb_config.copy()
+        config["name"] = name
         self._validate_load_balancer_config(config)
-        
-        # Crear el Load Balancer on-premise
         load_balancer = OnPremiseLoadBalancer(config)
         print(f"🏭 OnPrem Factory: Creando Load Balancer {load_balancer.name} ({load_balancer.load_balancer_type})")
-        
         return load_balancer
-    
-    def create_storage(self, config: Dict[str, Any]) -> Storage:
-        """
-        Crea almacenamiento on-premise con la configuración especificada.
-        
-        Args:
-            config: Configuración del storage incluyendo storage_type, capacity_gb, etc.
-            
-        Returns:
-            OnPremiseStorage: Nueva instancia de storage on-premise
-        """
-        # Validar configuración específica de on-premise
+
+    def create_storage(self, name: str, storage_config: Dict[str, Any]) -> Storage:
+        config = storage_config.copy()
+        config["name"] = name
         self._validate_storage_config(config)
-        
-        # Crear el almacenamiento on-premise
         storage = OnPremiseStorage(config)
         print(f"🏭 OnPrem Factory: Creando storage {storage.name} ({storage.storage_type})")
-        
         return storage
     
     def get_provider_info(self) -> Dict[str, Any]:
