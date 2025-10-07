@@ -114,6 +114,20 @@ class AzureCloudFactory(CloudAbstractFactory):
         print(f"🏭 Azure Factory: Created Blob Storage {name}")
         return storage
     
+    def get_provider_info(self) -> Dict[str, Any]:
+        """Retorna información completa sobre el proveedor Azure"""
+        return {
+            "name": "Microsoft Azure",
+            "code": "azure",
+            "supported_regions": self._supported_regions,
+            "services": {
+                "compute": "Virtual Machines",
+                "database": "Azure SQL Database",
+                "load_balancer": "Azure Load Balancer",
+                "storage": "Blob Storage"
+            }
+        }
+    
     def get_provider_name(self) -> str:
         """Retorna el nombre del proveedor"""
         return "Microsoft Azure"

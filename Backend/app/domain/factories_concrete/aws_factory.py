@@ -111,6 +111,20 @@ class AWSCloudFactory(CloudAbstractFactory):
         print(f"🏭 AWS Factory: Created S3 Bucket {name}")
         return storage
     
+    def get_provider_info(self) -> Dict[str, Any]:
+        """Retorna información completa sobre el proveedor AWS"""
+        return {
+            "name": "Amazon Web Services",
+            "code": "aws",
+            "supported_regions": self._supported_regions,
+            "services": {
+                "compute": "EC2 Instances",
+                "database": "RDS",
+                "load_balancer": "Application Load Balancer",
+                "storage": "S3"
+            }
+        }
+    
     def get_provider_name(self) -> str:
         """Retorna el nombre del proveedor"""
         return "Amazon Web Services (AWS)"

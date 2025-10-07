@@ -111,6 +111,14 @@ class GCPCloudFactory(CloudAbstractFactory):
             }
         }
     
+    def get_provider_name(self) -> str:
+        """Retorna el nombre del proveedor"""
+        return "Google Cloud Platform"
+    
+    def validate_region(self, region: str) -> bool:
+        """Valida si la región es soportada por GCP"""
+        return region in self.supported_regions
+    
     def _validate_vm_config(self, config: Dict[str, Any]) -> None:
         """Valida la configuración específica de Compute Engine"""
         required_fields = ["machine_type"]

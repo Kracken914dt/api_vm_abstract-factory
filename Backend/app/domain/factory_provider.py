@@ -15,6 +15,8 @@ from .abstractions.factory import CloudAbstractFactory
 from .factories_concrete.aws_factory import AWSCloudFactory
 from .factories_concrete.azure_factory import AzureCloudFactory
 from .factories_concrete.gcp_factory import GCPCloudFactory
+from .factories_concrete.oracle_factory import OracleCloudFactory
+from .factories_concrete.onprem_factory import OnPremiseCloudFactory
 
 
 class CloudProvider(str, Enum):
@@ -38,14 +40,12 @@ class FactoryProvider:
         self._register_default_factories()
     
     def _register_default_factories(self) -> None:
-        """Registra todas las factories implementadas"""
+        """Registra todas las factories implementadas - Abstract Factory completo"""
         self.register_factory(CloudProvider.AWS, AWSCloudFactory)
         self.register_factory(CloudProvider.AZURE, AzureCloudFactory)
         self.register_factory(CloudProvider.GCP, GCPCloudFactory)
-        
-        # TODO: Implementar las siguientes factories (extensibilidad futura)
-        # self.register_factory(CloudProvider.ORACLE, OracleCloudFactory) 
-        # self.register_factory(CloudProvider.ONPREM, OnPremCloudFactory)
+        self.register_factory(CloudProvider.ORACLE, OracleCloudFactory)
+        self.register_factory(CloudProvider.ONPREM, OnPremiseCloudFactory)
     
     def register_factory(
         self, 
